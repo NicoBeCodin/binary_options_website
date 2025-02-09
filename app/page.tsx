@@ -3,6 +3,7 @@ import React, {useEffect, useState} from 'react'
 import WalletSection from '@/components/WalletSection'
 import Markets from '@/components/Markets'
 import CreateMarket from '@/components/CreateMarket'
+import './globals.css'; // Adjust the path as necessary
 
 export default function Home() {
   const [darkMode, setDarkMode] = useState(true)

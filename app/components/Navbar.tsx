@@ -1,7 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, {useState} from 'react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
+import CreateMarketModal from './CreateMarketModal';
+
+
 
 interface NavbarProps {
     darkMode: boolean;
@@ -9,13 +12,17 @@ interface NavbarProps {
 }
 
 export default function Navbar({ darkMode, setDarkMode }: NavbarProps) {
+    const [isModalOpen, setModalOpen] = useState(false);
     return (
+        <>
         <nav className="fixed top-0 left-0 w-full bg-gray-800 dark:bg-gray-900 text-white flex justify-between items-center px-6 py-3 shadow-lg z-50">
             {/* Navigation Links */}
             <div className="flex space-x-6">
                 <a href="#wallet" className="hover:text-blue-400">Wallet</a>
                 <a href="#markets" className="hover:text-blue-400">Markets</a>
-                <a href="#create-market" className="hover:text-blue-400">Create Market</a>
+                <button onClick={() => setModalOpen(true)} className="hover:text-blue-400">
+            Create Market
+          </button>
             </div>
 
             {/* Wallet Button & Dark Mode Toggle */}
@@ -32,5 +39,8 @@ export default function Navbar({ darkMode, setDarkMode }: NavbarProps) {
                 </button>
             </div>
         </nav>
+        <CreateMarketModal isOpen={isModalOpen} onClose={() => setModalOpen(false)} />
+
+        </>
     );
 }

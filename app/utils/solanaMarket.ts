@@ -7,36 +7,29 @@ import {
   clusterApiUrl,
   Signer,
   sendAndConfirmTransaction,
+  SYSVAR_RENT_PUBKEY,
 } from "@solana/web3.js";
 import { useWallet, WalletContextState } from "@solana/wallet-adapter-react";
-import {Buffer} from "buffer";
+import { Buffer } from "buffer";
 const discriminators = {
-    initializeMarket: [35, 35, 189, 193, 155, 48, 170, 203],
-    placeBet: [222, 62, 67, 220, 63, 166, 126, 33],
-    resolveMarket: [155, 23, 80, 173, 46, 74, 23, 239],
-    getPriceFeed: [110, 252, 205, 111, 43, 23, 155, 134],
-    fetchBtcPrice: [218, 72, 78, 5, 219, 85, 91, 157],
-    fetchCoinPrice: [173, 85, 70, 71, 109, 106, 163, 31],
-    createOutcomeTokens: [20, 255, 41, 64, 32, 77, 240, 93],
-    redeem: [184, 12, 86, 149, 70, 196, 97, 225],
-    initializeTreasury: [124, 186, 211, 195, 85, 165, 129, 166],
-    lockFunds: [171, 49, 9, 86, 156, 155, 2, 88],
-    initializeOutcomeMints: [223,167,202,135,111,93,151,249],
-    initializeTreasuryTokenAccounts: [237,12,117,222,94,228,160,55],
-    mintOutcomeTokens: [27,243,237,46,2,226,144,209],
-    createMint: [69,44,215,132,253,214,41,45],
-    mintMetadataTokens :[117,160,226,215,175,109,84,91] 
+  initializeMarket: [35, 35, 189, 193, 155, 48, 170, 203],
+  placeBet: [222, 62, 67, 220, 63, 166, 126, 33],
+  resolveMarket: [155, 23, 80, 173, 46, 74, 23, 239],
+  getPriceFeed: [110, 252, 205, 111, 43, 23, 155, 134],
+  fetchBtcPrice: [218, 72, 78, 5, 219, 85, 91, 157],
+  fetchCoinPrice: [173, 85, 70, 71, 109, 106, 163, 31],
+  createOutcomeTokens: [20, 255, 41, 64, 32, 77, 240, 93],
+  redeem: [184, 12, 86, 149, 70, 196, 97, 225],
+  initializeTreasury: [124, 186, 211, 195, 85, 165, 129, 166],
+  lockFunds: [171, 49, 9, 86, 156, 155, 2, 88],
+  initializeOutcomeMints: [223, 167, 202, 135, 111, 93, 151, 249],
+  initializeTreasuryTokenAccounts: [237, 12, 117, 222, 94, 228, 160, 55],
+  mintOutcomeTokens: [27, 243, 237, 46, 2, 226, 144, 209],
+  createMint: [69, 44, 215, 132, 253, 214, 41, 45],
+  mintMetadataTokens: [117, 160, 226, 215, 175, 109, 84, 91],
 };
 
 const programId = new PublicKey("ENeicYASniyR5oHnrp5pxq7UtUMLqmCJKqu5Er8ChNtP");
-
-function writeBigUInt64LE(buffer: Buffer, value: bigint, offset: number) {
-    let temp = value;
-    for (let i = 0; i < 8; i++) {
-      buffer[offset + i] = Number(temp & BigInt(0xff)); // Mask out lowest byte
-      temp >>= BigInt(8); // Shift right
-    }
-  }
 
 const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
 // Function to get onchain timestamp and align expiry time
@@ -142,7 +135,6 @@ export async function initializeMarket(
   instructionData.writeBigInt64LE(BigInt(expiry), 16); // Write expiry timestamp
   instructionData.writeUInt8(asset, 24); // Write asset (BTC=1, SOL=2, ETH=3)
 
-
   // Create the transaction instruction
   const instruction = new TransactionInstruction({
     keys: [
@@ -151,7 +143,7 @@ export async function initializeMarket(
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
     ],
     programId,
-    data: instructionData
+    data: instructionData,
   });
 
   const transaction = new Transaction().add(instruction);
@@ -159,7 +151,149 @@ export async function initializeMarket(
   const { blockhash } = await connection.getLatestBlockhash();
   transaction.recentBlockhash = blockhash;
   transaction.feePayer = wallet.publicKey;
-  const signature = await sendTransactionWithLogs(connection, transaction,wallet,);
+  const signature = await sendTransactionWithLogs(
+    connection,
+    transaction,
+    wallet
+  );
   console.log(`Market created! Tx Signature: ${signature}`);
   return marketPda;
+}
+
+const METADATA_SEED = "metadata";
+const TOKEN_METADATA_PROGRAM_ID = new PublicKey(
+  "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+);
+const associatedTokenProgramId = new PublicKey(
+  "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+);
+const tokenProgramId = new PublicKey(
+  "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+);
+
+export async function createMetadataTokens(
+  marketPda: PublicKey,
+  wallet: WalletContextState
+) {
+  try {
+    console.log("Initializing outcome mints for market:", marketPda.toString());
+
+    if (!wallet.publicKey) {
+      throw new Error("No payer found. Something went wrong with the wallet!");
+    }
+
+    const [yesMintPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("yes_mint"), marketPda.toBuffer()],
+      programId
+    );
+
+    const [noMintPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("no_mint"), marketPda.toBuffer()],
+      programId
+    );
+
+    const [yesMetadataAddress] = PublicKey.findProgramAddressSync(
+      [
+        Buffer.from(METADATA_SEED),
+        TOKEN_METADATA_PROGRAM_ID.toBuffer(),
+        yesMintPda.toBuffer(),
+      ],
+      TOKEN_METADATA_PROGRAM_ID
+    );
+
+    const [noMetadataAddress] = PublicKey.findProgramAddressSync(
+      [
+        Buffer.from(METADATA_SEED),
+        TOKEN_METADATA_PROGRAM_ID.toBuffer(),
+        noMintPda.toBuffer(),
+      ],
+      TOKEN_METADATA_PROGRAM_ID
+    );
+
+    const [treasuryYesTokenAccount] = PublicKey.findProgramAddressSync(
+      [marketPda.toBuffer(), tokenProgramId.toBuffer(), yesMintPda.toBuffer()],
+      associatedTokenProgramId
+    );
+
+    const [treasuryNoTokenAccount] = PublicKey.findProgramAddressSync(
+      [marketPda.toBuffer(), tokenProgramId.toBuffer(), noMintPda.toBuffer()],
+      associatedTokenProgramId
+    );
+
+    console.log("yesMintPda:", yesMintPda.toString());
+    console.log("noMintPda:", noMintPda.toString());
+
+    const checkMintAlreadyCreated = await connection.getAccountInfo(yesMintPda);
+
+    if (checkMintAlreadyCreated) {
+      console.log("Metadata account already exists, skipping mint creation.");
+    } else {
+      const createMintIx = new TransactionInstruction({
+        keys: [
+          { pubkey: marketPda, isSigner: false, isWritable: true },
+          { pubkey: wallet.publicKey, isSigner: true, isWritable: false },
+          { pubkey: yesMintPda, isSigner: false, isWritable: true },
+          { pubkey: noMintPda, isSigner: false, isWritable: true },
+          { pubkey: yesMetadataAddress, isSigner: false, isWritable: true },
+          { pubkey: noMetadataAddress, isSigner: false, isWritable: true },
+          { pubkey: tokenProgramId, isSigner: false, isWritable: false },
+          {
+            pubkey: TOKEN_METADATA_PROGRAM_ID,
+            isSigner: false,
+            isWritable: false,
+          },
+          {
+            pubkey: SystemProgram.programId,
+            isSigner: false,
+            isWritable: false,
+          },
+          { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+        ],
+        programId,
+        data: Buffer.from(discriminators.createMint),
+      });
+
+      const transaction1 = new Transaction().add(createMintIx);
+
+      const { blockhash } = await connection.getLatestBlockhash();
+      transaction1.recentBlockhash = blockhash;
+      transaction1.feePayer = wallet.publicKey;
+      await sendTransactionWithLogs(connection, transaction1, wallet);
+      console.log("Transaction for createMint sent");
+    }
+
+    const mintMetadataTokensIx = new TransactionInstruction({
+      keys: [
+        { pubkey: marketPda, isSigner: false, isWritable: true },
+        { pubkey: yesMintPda, isSigner: false, isWritable: true },
+        { pubkey: noMintPda, isSigner: false, isWritable: true },
+        { pubkey: treasuryYesTokenAccount, isSigner: false, isWritable: true },
+        { pubkey: treasuryNoTokenAccount, isSigner: false, isWritable: true },
+        { pubkey: wallet.publicKey, isSigner: true, isWritable: false },
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+        { pubkey: tokenProgramId, isSigner: false, isWritable: false },
+        {
+          pubkey: associatedTokenProgramId,
+          isSigner: false,
+          isWritable: false,
+        },
+        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+      ],
+      programId,
+      data: Buffer.from(discriminators.mintMetadataTokens),
+    });
+
+    const transaction2 = new Transaction().add(mintMetadataTokensIx);
+
+    const { blockhash } = await connection.getLatestBlockhash();
+    transaction2.recentBlockhash = blockhash;
+    transaction2.feePayer = wallet.publicKey;
+    await sendTransactionWithLogs(connection, transaction2, wallet);
+    console.log("Transaction for mintMetadataTokens sent");
+    return {yesMintPda, noMintPda}
+  } catch (error) {
+    console.error("Error creating metadata tokens:", error);
+    throw error;
+  }
+  
 }

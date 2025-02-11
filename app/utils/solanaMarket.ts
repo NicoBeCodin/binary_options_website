@@ -73,16 +73,6 @@ async function sendTransactionWithLogs(
   } catch (err) {
     console.error("Error during transaction:", err);
 
-    // // Fetch logs if transaction fails
-    // if ('signature' in err) {
-    //   const failedTxDetails = await connection.getTransaction(err.signature, {
-    //     commitment: "confirmed",
-    //   });
-
-    //   if (failedTxDetails?.meta?.logMessages) {
-    //     console.error("Transaction Logs:");
-    //     failedTxDetails.meta.logMessages.forEach((log) => console.error(log));
-
     throw err;
   }
 }
@@ -222,6 +212,8 @@ export async function createMetadataTokens(
 
     console.log("yesMintPda:", yesMintPda.toString());
     console.log("noMintPda:", noMintPda.toString());
+    console.log("yesMetadataAccount", yesMetadataAddress.toString());
+    console.log("noMetadataAccount", noMetadataAddress.toString());    
 
     const checkMintAlreadyCreated = await connection.getAccountInfo(yesMintPda);
 
@@ -296,4 +288,183 @@ export async function createMetadataTokens(
     throw error;
   }
   
+}
+
+
+export async function lockFunds(
+  marketPda: PublicKey,
+  amount: number,
+  wallet: WalletContextState
+) {
+  const PRICE_PER_TOKEN = 100000;
+  const lamportsToLock = amount * PRICE_PER_TOKEN;
+
+  if (!wallet.publicKey) {
+    throw new Error("Wallet not connected!");
+  }
+
+  const instructionData = Buffer.alloc(16);
+  Buffer.from(discriminators.lockFunds).copy(instructionData, 0)
+  instructionData.writeBigUInt64LE(BigInt(amount), 8);
+
+  // Derive Mint PDAs
+  const [yesMintPda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("yes_mint"), marketPda.toBuffer()],
+    programId
+  );
+
+  const [noMintPda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("no_mint"), marketPda.toBuffer()],
+    programId
+  );
+
+  // Derive Associated Token Accounts
+  const [treasuryYesTokenAccount] = PublicKey.findProgramAddressSync(
+    [marketPda.toBuffer(), tokenProgramId.toBuffer(), yesMintPda.toBuffer()],
+    associatedTokenProgramId
+  );
+
+  const [treasuryNoTokenAccount] = PublicKey.findProgramAddressSync(
+    [marketPda.toBuffer(), tokenProgramId.toBuffer(), noMintPda.toBuffer()],
+    associatedTokenProgramId
+  );
+
+  const [userYesTokenAccount] = PublicKey.findProgramAddressSync(
+    [wallet.publicKey.toBuffer(), tokenProgramId.toBuffer(), yesMintPda.toBuffer()],
+    associatedTokenProgramId
+  );
+
+  const [userNoTokenAccount] = PublicKey.findProgramAddressSync(
+    [wallet.publicKey.toBuffer(), tokenProgramId.toBuffer(), noMintPda.toBuffer()],
+    associatedTokenProgramId
+  );
+
+  // Create Transaction Instruction
+  const lockFundsIx = new TransactionInstruction({
+    keys: [
+      { pubkey: wallet.publicKey, isSigner: true, isWritable: false },
+      { pubkey: marketPda, isSigner: false, isWritable: true },
+      { pubkey: yesMintPda, isSigner: false, isWritable: true },
+      { pubkey: noMintPda, isSigner: false, isWritable: true },
+      { pubkey: treasuryYesTokenAccount, isSigner: false, isWritable: true },
+      { pubkey: treasuryNoTokenAccount, isSigner: false, isWritable: true },
+      { pubkey: userYesTokenAccount, isSigner: false, isWritable: true },
+      { pubkey: userNoTokenAccount, isSigner: false, isWritable: true },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+      { pubkey: tokenProgramId, isSigner: false, isWritable: false },
+      { pubkey: associatedTokenProgramId, isSigner: false, isWritable: false },
+    ],
+    programId,
+    data: instructionData,
+  });
+
+  const transaction = new Transaction().add(lockFundsIx);
+  const { blockhash } = await connection.getLatestBlockhash();
+  transaction.recentBlockhash = blockhash;
+  transaction.feePayer = wallet.publicKey;
+  await sendTransactionWithLogs(connection, transaction, wallet);
+
+  console.log(`Locked ${lamportsToLock} lamports in market vault`);
+}
+
+export async function resolveMarket(
+  marketPda: PublicKey,
+  priceAccount: PublicKey,
+  wallet: WalletContextState
+) {
+  if (!wallet.publicKey) {
+    throw new Error("Wallet not connected!");
+  }
+
+  const instruction = new TransactionInstruction({
+    keys: [
+      { pubkey: wallet.publicKey, isSigner: true, isWritable: false },
+      { pubkey: marketPda, isSigner: false, isWritable: true },
+      { pubkey: priceAccount, isSigner: false, isWritable: false },
+    ],
+    programId,
+    data: Buffer.concat([
+      Buffer.from(discriminators.resolveMarket),
+      Buffer.alloc(0),
+    ]),
+  });
+
+  const transaction = new Transaction().add(instruction);
+  const { blockhash } = await connection.getLatestBlockhash();
+  transaction.recentBlockhash = blockhash;
+  transaction.feePayer = wallet.publicKey;
+
+  await sendTransactionWithLogs(connection, transaction, wallet);
+
+  console.log(`Market resolved successfully: ${marketPda.toString()}`);
+}
+
+export async function redeemFunds(
+  marketPda: PublicKey,
+  wallet: WalletContextState
+) {
+  if (!wallet.publicKey) {
+    throw new Error("Wallet not connected!");
+  }
+
+  // ✅ Derive Mint PDAs
+  const [yesMintPda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("yes_mint"), marketPda.toBuffer()],
+    programId
+  );
+
+  const [noMintPda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("no_mint"), marketPda.toBuffer()],
+    programId
+  );
+
+  // ✅ Derive Associated Token Accounts
+  const [treasuryYesTokenAccount] = PublicKey.findProgramAddressSync(
+    [marketPda.toBuffer(), tokenProgramId.toBuffer(), yesMintPda.toBuffer()],
+    associatedTokenProgramId
+  );
+
+  const [treasuryNoTokenAccount] = PublicKey.findProgramAddressSync(
+    [marketPda.toBuffer(), tokenProgramId.toBuffer(), noMintPda.toBuffer()],
+    associatedTokenProgramId
+  );
+
+  const [userYesTokenAccount] = PublicKey.findProgramAddressSync(
+    [wallet.publicKey.toBuffer(), tokenProgramId.toBuffer(), yesMintPda.toBuffer()],
+    associatedTokenProgramId
+  );
+
+  const [userNoTokenAccount] = PublicKey.findProgramAddressSync(
+    [wallet.publicKey.toBuffer(), tokenProgramId.toBuffer(), noMintPda.toBuffer()],
+    associatedTokenProgramId
+  );
+
+  // Create Transaction Instruction
+  const redeemIx = new TransactionInstruction({
+    keys: [
+      { pubkey: wallet.publicKey, isSigner: true, isWritable: false },
+      { pubkey: marketPda, isSigner: false, isWritable: true },
+      { pubkey: yesMintPda, isSigner: false, isWritable: true },
+      { pubkey: noMintPda, isSigner: false, isWritable: true },
+      { pubkey: treasuryYesTokenAccount, isSigner: false, isWritable: true },
+      { pubkey: treasuryNoTokenAccount, isSigner: false, isWritable: true },
+      { pubkey: userYesTokenAccount, isSigner: false, isWritable: true },
+      { pubkey: userNoTokenAccount, isSigner: false, isWritable: true },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+      { pubkey: tokenProgramId, isSigner: false, isWritable: false },
+    ],
+    programId,
+    data: Buffer.concat([
+      Buffer.from(discriminators.redeem),
+      Buffer.alloc(0),
+    ]),
+  });
+
+  const transaction = new Transaction().add(redeemIx);
+  const { blockhash } = await connection.getLatestBlockhash();
+  transaction.recentBlockhash = blockhash;
+  transaction.feePayer = wallet.publicKey;
+  await sendTransactionWithLogs(connection,transaction,wallet);
+
+  console.log(`Redeemed funds from market: ${marketPda.toString()}`);
 }

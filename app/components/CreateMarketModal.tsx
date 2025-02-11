@@ -179,8 +179,14 @@ export default function CreateMarketModal({
         {yesMintPda && noMintPda && (
           <div className="mt-4 text-center">
             <p className="text-green-400">
-              Yes Mint PDA: {yesMintPda.toString()}
-            </p>
+              Yes Mint PDA: </p>
+              <a href = {`https://explorer.solana.com/address/${yesMintPda}?cluster=devnet`}
+              target= "_blank"
+              rel = "noopener noreferrer"
+              className= "text-blue-400 underline">
+                {yesMintPda.toString()}
+              </a>
+
             <button
               onClick={() => copyToClipboard(yesMintPda.toString())}
               className="ml-2 p-1 bg-gray-700 rounded hover:bg-gray-600"
@@ -189,8 +195,15 @@ export default function CreateMarketModal({
             </button>
 
             <p className="text-red-400 mt-2">
-              No Mint PDA: {noMintPda.toString()}
+              No Mint PDA: 
             </p>
+            <a href = {`https://explorer.solana.com/address/${noMintPda}?cluster=devnet`}
+              target= "_blank"
+              rel = "noopener noreferrer"
+              className= "text-blue-400 underline">
+                {noMintPda.toString()}
+              </a>
+
             <button
               onClick={() => copyToClipboard(noMintPda.toString())}
               className="ml-2 p-1 bg-gray-700 rounded hover:bg-gray-600"

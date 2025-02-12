@@ -35,14 +35,18 @@ const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
 // Function to get onchain timestamp and align expiry time
 async function getExpiryTimestamp(timeDelta: number) {
   console.log("Fetching onchain time...");
-  const slot = await connection.getSlot();
-
-  const timestamp = await connection.getBlockTime(slot);
+  const timestamp = await getOnchainTime();
   if (!timestamp) {
     throw new Error("Can't get onchain time.");
   }
   console.log("Onchain unix timestamp:", timestamp);
   return timestamp + timeDelta * 60;
+}
+
+export async function getOnchainTime() {
+  const slot =await connection.getSlot();
+  const timestamp = await connection.getBlockTime(slot);
+  return timestamp;
 }
 
 async function sendTransactionWithLogs(

@@ -11,7 +11,7 @@ import {
 } from "@solana/web3.js";
 import { useWallet, WalletContextState } from "@solana/wallet-adapter-react";
 import { Buffer } from "buffer";
-const discriminators = {
+export const discriminators = {
   initializeMarket: [35, 35, 189, 193, 155, 48, 170, 203],
   placeBet: [222, 62, 67, 220, 63, 166, 126, 33],
   resolveMarket: [155, 23, 80, 173, 46, 74, 23, 239],
@@ -29,7 +29,7 @@ const discriminators = {
   mintMetadataTokens: [117, 160, 226, 215, 175, 109, 84, 91],
 };
 
-const programId = new PublicKey("ENeicYASniyR5oHnrp5pxq7UtUMLqmCJKqu5Er8ChNtP");
+export const programId = new PublicKey("ENeicYASniyR5oHnrp5pxq7UtUMLqmCJKqu5Er8ChNtP");
 
 const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
 // Function to get onchain timestamp and align expiry time

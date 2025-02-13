@@ -75,9 +75,10 @@ export default function Navbar({ darkMode, setDarkMode }: NavbarProps) {
       <LockFundsModal
         isOpen={isLockFundsOpen}
         onClose={() => setLockFundsOpen(false)}
+        marketPda=""
       />
-      <ResolveMarketModal isOpen={isResolveMarketOpen} onClose={() => setResolveMarketOpen(false)} />
-      <RedeemModal isOpen={isRedeemOpen} onClose={() => setRedeemOpen(false)} />
+      <ResolveMarketModal isOpen={isResolveMarketOpen} onClose={() => setResolveMarketOpen(false)} marketPda=" " />
+      <RedeemModal isOpen={isRedeemOpen} onClose={() => setRedeemOpen(false)} marketPda=""/>
     </>
   );
 }

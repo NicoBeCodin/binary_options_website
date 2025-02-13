@@ -14,12 +14,13 @@ const price_feeds = {
 interface ResolveMarketModalProps {
   isOpen: boolean;
   onClose: () => void;
+  marketPda: string; // ✅ Fix here
 }
 
-export default function ResolveMarketModal({ isOpen, onClose }: ResolveMarketModalProps) {
+export default function ResolveMarketModal({ isOpen, onClose, marketPda }: ResolveMarketModalProps) {
   const wallet = useWallet();
 
-  const [marketPda, setMarketPda] = useState<string>("");
+  // const [marketPda, setMarketPda] = useState<string>("");
   const [selectedAsset, setSelectedAsset] = useState<"btc" | "sol" | "eth">("sol");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -66,7 +67,7 @@ export default function ResolveMarketModal({ isOpen, onClose }: ResolveMarketMod
         <input
           type="text"
           value={marketPda}
-          onChange={(e) => setMarketPda(e.target.value)}
+          // onChange={(e) => setMarketPda(e.target.value)}
           className="w-full p-2 rounded bg-gray-700 text-white"
           placeholder="Enter Market PDA"
         />

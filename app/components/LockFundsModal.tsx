@@ -5,15 +5,16 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { lockFunds } from "@/utils/solanaMarket"; // Import function
 import { PublicKey } from "@solana/web3.js";
 
+
 interface LockFundsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  marketPda: string; // ✅ Add this line
 }
 
-export default function LockFundsModal({ isOpen, onClose }: LockFundsModalProps) {
+export default function LockFundsModal({ isOpen, onClose, marketPda }: LockFundsModalProps) {
   const wallet = useWallet();
 
-  const [marketPda, setMarketPda] = useState<string>("");
   const [tokenAmount, setTokenAmount] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -59,10 +60,9 @@ export default function LockFundsModal({ isOpen, onClose }: LockFundsModalProps)
         <label className="block mb-2">Market PDA:</label>
         <input
           type="text"
-          value={marketPda}
-          onChange={(e) => setMarketPda(e.target.value)}
-          className="w-full p-2 rounded bg-gray-700 text-white"
-          placeholder="Enter Market PDA"
+          value={marketPda} // ✅ Use the pre-filled marketPda from props
+          className="w-full p-2 rounded bg-gray-700 text-gray-400"
+          disabled
         />
 
         <label className="block mt-4 mb-2">Number of Yes/No Tokens:</label>

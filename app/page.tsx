@@ -11,9 +11,6 @@ export default function Home() {
                 <Markets />
             </section>
 
-            <section id="create-market" className="py-20">
-                <CreateMarket />
-            </section>
         </div>
     );
 }
